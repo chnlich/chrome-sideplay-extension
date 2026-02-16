@@ -2,14 +2,10 @@
   "manifest_version": 3,
   "name": "SidePlay - Spatial Audio Controller",
   "description": "Lightweight Chrome extension for precise control over spatial audio. Isolate tab audio to left or right channel with a single click.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "permissions": [
     "activeTab",
-    "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -27,7 +23,7 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_idle",
-      "all_frames": true
+      "all_frames": false
     }
   ],
   "icons": {
