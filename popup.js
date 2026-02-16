@@ -1,33 +1,31 @@
+// SidePlay Popup - Controls content script
+
+console.log('[SidePlay Popup] Script loaded');
+
 let currentTabId = null;
 let currentChannel = 'both';
 
-// 初始化
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[SidePlay Popup] DOM loaded');
   
   try {
-    // 获取当前标签页
+    // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     currentTabId = tab.id;
-    console.log('[SidePlay Popup] Current tab:', currentTabId, tab.title);
+    console.log('[SidePlay Popup] Current tab:', currentTabId);
     
-    // 更新标签页信息
+    // Update UI
     const tabInfo = document.getElementById('tabInfo');
     tabInfo.textContent = tab.title || tab.url;
     
-    // 获取当前声道设置
-    console.log('[SidePlay Popup] Getting current channel...');
-    const response = await chrome.runtime.sendMessage({
-      action: 'getChannel',
-      tabId: currentTabId
-    });
-    console.log('[SidePlay Popup] Current channel:', response.channel);
-    currentChannel = response.channel || 'both';
+    // Get channel from storage (content script may not be ready yet)
+    const result = await chrome.storage.local.get(`channel_${currentTabId}`);
+    currentChannel = result[`channel_${currentTabId}`] || 'both';
+    console.log('[SidePlay Popup] Channel from storage:', currentChannel);
     
-    // 更新 UI
     updateUI(currentChannel);
     
-    // 绑定点击事件
+    // Bind click events
     document.querySelectorAll('.option').forEach(option => {
       option.addEventListener('click', () => {
         const channel = option.dataset.channel;
@@ -35,6 +33,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         setChannel(channel);
       });
     });
+    
+    // Trigger scan for audio elements
+    console.log('[SidePlay Popup] Triggering audio scan...');
+    const response = await chrome.runtime.sendMessage({
+      action: 'scanAudio',
+      tabId: currentTabId
+    });
+    console.log('[SidePlay Popup] Scan result:', response);
+    
+    // Apply stored channel setting
+    if (currentChannel !== 'both') {
+      console.log('[SidePlay Popup] Applying stored channel:', currentChannel);
+      setChannel(currentChannel);
+    }
+    
   } catch (error) {
     console.error('[SidePlay Popup] Init error:', error);
     showStatus('初始化失败: ' + error.message, true);
@@ -42,7 +55,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function updateUI(channel) {
-  console.log('[SidePlay Popup] Updating UI for channel:', channel);
   document.querySelectorAll('.option').forEach(option => {
     option.classList.remove('active');
   });
@@ -50,7 +62,7 @@ function updateUI(channel) {
 }
 
 function showStatus(message, isError = false) {
-  console.log('[SidePlay Popup] Status:', message, isError ? '(error)' : '');
+  console.log('[SidePlay Popup] Status:', message);
   const status = document.getElementById('status');
   status.textContent = message;
   status.className = `status ${isError ? 'error' : 'success'}`;
@@ -62,53 +74,31 @@ function showStatus(message, isError = false) {
 }
 
 async function setChannel(channel) {
-  console.log('[SidePlay Popup] setChannel called:', channel);
+  console.log('[SidePlay Popup] setChannel:', channel);
+  
   const status = document.getElementById('status');
   status.textContent = '应用设置中...';
   status.className = 'status';
   status.style.display = 'block';
   
   try {
-    // 先尝试直接设置（可能已初始化过）
-    console.log('[SidePlay Popup] Trying to set channel directly...');
-    let response = await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       action: 'setChannel',
       tabId: currentTabId,
       channel: channel
     });
-    console.log('[SidePlay Popup] Direct set response:', response);
     
-    // 如果失败需要初始化，则获取 streamId 并重试
-    if (!response.success && response.error === '音频未初始化') {
-      console.log('[SidePlay Popup] Audio not initialized, getting streamId...');
-      status.textContent = '正在获取音频权限...';
-      
-      // 在用户手势上下文中获取 streamId
-      const streamId = await chrome.tabCapture.getMediaStreamId({
-        targetTabId: currentTabId
-      });
-      console.log('[SidePlay Popup] Got streamId:', streamId ? 'success' : 'failed');
-      
-      // 使用 streamId 重新调用
-      console.log('[SidePlay Popup] Retrying with streamId...');
-      response = await chrome.runtime.sendMessage({
-        action: 'setChannel',
-        tabId: currentTabId,
-        channel: channel,
-        streamId: streamId
-      });
-      console.log('[SidePlay Popup] Retry response:', response);
-    }
+    console.log('[SidePlay Popup] Response:', response);
     
-    if (response.success) {
+    if (response && response.success) {
       currentChannel = channel;
       updateUI(channel);
-      showStatus(`已切换到: ${getChannelName(channel)}`);
+      showStatus(`已切换到: ${getChannelName(channel)} (${response.hookedCount || 0} 个音频元素)`);
     } else {
-      showStatus('错误: ' + (response.error || '无法应用设置'), true);
+      showStatus('错误: ' + (response?.error || '无法应用设置'), true);
     }
   } catch (error) {
-    console.error('[SidePlay Popup] setChannel error:', error);
+    console.error('[SidePlay Popup] Error:', error);
     showStatus('错误: ' + error.message, true);
   }
 }
