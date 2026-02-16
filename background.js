@@ -21,14 +21,9 @@ async function setupOffscreenDocument() {
   });
 }
 
-// 初始化标签页的音频
-async function initTabAudio(tabId) {
+// 初始化标签页的音频 (从 popup 传来的 streamId)
+async function initTabAudio(tabId, streamId) {
   await setupOffscreenDocument();
-  
-  // 获取 stream ID
-  const streamId = await chrome.tabCapture.getMediaStreamId({
-    targetTabId: tabId
-  });
   
   // 发送给 offscreen document 处理
   return await chrome.runtime.sendMessage({
@@ -39,7 +34,7 @@ async function initTabAudio(tabId) {
 }
 
 // 设置声道
-async function setChannel(tabId, channel) {
+async function setChannel(tabId, channel, streamId = null) {
   await setupOffscreenDocument();
   
   // 先尝试设置，如果失败可能是音频未初始化
@@ -49,9 +44,9 @@ async function setChannel(tabId, channel) {
     channel: channel
   });
   
-  // 如果失败，先初始化再设置
-  if (!result.success && result.error === '音频未初始化') {
-    const initResult = await initTabAudio(tabId);
+  // 如果失败且提供了 streamId，先初始化再设置
+  if (!result.success && result.error === '音频未初始化' && streamId) {
+    const initResult = await initTabAudio(tabId, streamId);
     if (!initResult.success) {
       return initResult;
     }
@@ -89,7 +84,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // 监听来自 popup 的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'setChannel') {
-    setChannel(request.tabId, request.channel).then(sendResponse);
+    setChannel(request.tabId, request.channel, request.streamId).then(sendResponse);
     return true;
   }
   
@@ -104,6 +99,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     cleanupTab(request.tabId).then(() => {
       sendResponse({ success: true });
     });
+    return true;
+  }
+  
+  if (request.action === 'initAudio') {
+    // 支持从 popup 直接初始化
+    initTabAudio(request.tabId, request.streamId).then(sendResponse);
     return true;
   }
 });

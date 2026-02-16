@@ -55,11 +55,30 @@ async function setChannel(channel) {
   status.style.display = 'block';
   
   try {
-    const response = await chrome.runtime.sendMessage({
+    // 先尝试直接设置（可能已初始化过）
+    let response = await chrome.runtime.sendMessage({
       action: 'setChannel',
       tabId: currentTabId,
       channel: channel
     });
+    
+    // 如果失败需要初始化，则获取 streamId 并重试
+    if (!response.success && response.error === '音频未初始化') {
+      status.textContent = '正在获取音频权限...';
+      
+      // 在用户手势上下文中获取 streamId
+      const streamId = await chrome.tabCapture.getMediaStreamId({
+        targetTabId: currentTabId
+      });
+      
+      // 使用 streamId 重新调用
+      response = await chrome.runtime.sendMessage({
+        action: 'setChannel',
+        tabId: currentTabId,
+        channel: channel,
+        streamId: streamId
+      });
+    }
     
     if (response.success) {
       currentChannel = channel;
