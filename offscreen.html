@@ -5,17 +5,79 @@
   <title>Audio Processor</title>
 </head>
 <body>
+  <h1>SidePlay Audio Processor</h1>
+  <p id="status">Initializing...</p>
+  
   <script>
-    console.log('[SidePlay Offscreen] Loaded');
+    console.log('[SidePlay Offscreen] === SCRIPT START ===');
+    document.getElementById('status').textContent = 'Script loaded';
     
     // 存储每个标签页的音频上下文
     const audioContexts = new Map();
+    let messageListenerRegistered = false;
+    
+    // 确保只注册一次 listener
+    if (!messageListenerRegistered) {
+      console.log('[SidePlay Offscreen] Registering message listener...');
+      
+      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        console.log('[SidePlay Offscreen] Received message:', request.action, request);
+        document.getElementById('status').textContent = 'Last action: ' + request.action;
+        
+        try {
+          if (request.action === 'initAudio') {
+            initAudio(request.tabId, request.streamId).then(result => {
+              console.log('[SidePlay Offscreen] initAudio result:', result);
+              sendResponse(result);
+            }).catch(error => {
+              console.error('[SidePlay Offscreen] initAudio error:', error);
+              sendResponse({ success: false, error: error.message });
+            });
+            return true; // 异步响应
+          }
+          
+          if (request.action === 'setChannel') {
+            const result = setChannel(request.tabId, request.channel);
+            console.log('[SidePlay Offscreen] setChannel result:', result);
+            sendResponse(result);
+            return false;
+          }
+          
+          if (request.action === 'cleanup') {
+            cleanupTab(request.tabId);
+            sendResponse({ success: true });
+            return false;
+          }
+          
+          if (request.action === 'ping') {
+            sendResponse({ success: true, pong: true });
+            return false;
+          }
+          
+        } catch (error) {
+          console.error('[SidePlay Offscreen] Error handling message:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      });
+      
+      messageListenerRegistered = true;
+      console.log('[SidePlay Offscreen] Message listener registered');
+      document.getElementById('status').textContent = 'Ready';
+    }
     
     // 初始化音频处理
     async function initAudio(tabId, streamId) {
-      console.log('[SidePlay Offscreen] initAudio called for tab', tabId);
+      console.log('[SidePlay Offscreen] initAudio called for tab', tabId, 'streamId exists:', !!streamId);
+      
       try {
+        // 如果已存在，先清理
+        if (audioContexts.has(tabId)) {
+          console.log('[SidePlay Offscreen] Cleaning up existing context for tab', tabId);
+          cleanupTab(tabId);
+        }
+        
         // 获取媒体流
+        console.log('[SidePlay Offscreen] Requesting media stream...');
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             mandatory: {
@@ -26,7 +88,7 @@
           video: false
         });
         
-        console.log('[SidePlay Offscreen] Got media stream for tab', tabId);
+        console.log('[SidePlay Offscreen] Got media stream for tab', tabId, 'tracks:', stream.getAudioTracks().length);
         
         const audioContext = new AudioContext();
         const source = audioContext.createMediaStreamSource(stream);
@@ -57,8 +119,10 @@
         // 播放处理后的音频
         const audio = new Audio();
         audio.srcObject = dest.stream;
-        await audio.play();
         
+        // 尝试播放
+        console.log('[SidePlay Offscreen] Starting audio playback...');
+        await audio.play();
         console.log('[SidePlay Offscreen] Audio playback started for tab', tabId);
         
         // 存储上下文
@@ -70,9 +134,12 @@
           stream
         });
         
+        document.getElementById('status').textContent = 'Active - Tab ' + tabId;
         return { success: true };
+        
       } catch (error) {
         console.error('[SidePlay Offscreen] initAudio error:', error);
+        document.getElementById('status').textContent = 'Error: ' + error.message;
         return { success: false, error: error.message };
       }
     }
@@ -81,29 +148,37 @@
     function setChannel(tabId, channel) {
       console.log('[SidePlay Offscreen] setChannel called for tab', tabId, 'channel', channel);
       const ctx = audioContexts.get(tabId);
+      
       if (!ctx) {
-        console.log('[SidePlay Offscreen] Audio not initialized for tab', tabId);
+        console.log('[SidePlay Offscreen] No audio context for tab', tabId, 'Available tabs:', Array.from(audioContexts.keys()));
         return { success: false, error: '音频未初始化' };
       }
       
-      switch (channel) {
-        case 'left':
-          ctx.leftGain.gain.value = 1;
-          ctx.rightGain.gain.value = 0;
-          break;
-        case 'right':
-          ctx.leftGain.gain.value = 0;
-          ctx.rightGain.gain.value = 1;
-          break;
-        case 'both':
-        default:
-          ctx.leftGain.gain.value = 1;
-          ctx.rightGain.gain.value = 1;
-          break;
+      try {
+        switch (channel) {
+          case 'left':
+            ctx.leftGain.gain.value = 1;
+            ctx.rightGain.gain.value = 0;
+            break;
+          case 'right':
+            ctx.leftGain.gain.value = 0;
+            ctx.rightGain.gain.value = 1;
+            break;
+          case 'both':
+          default:
+            ctx.leftGain.gain.value = 1;
+            ctx.rightGain.gain.value = 1;
+            break;
+        }
+        
+        console.log('[SidePlay Offscreen] Channel set to', channel, 'for tab', tabId);
+        document.getElementById('status').textContent = 'Active - Tab ' + tabId + ' (' + channel + ')';
+        return { success: true };
+        
+      } catch (error) {
+        console.error('[SidePlay Offscreen] setChannel error:', error);
+        return { success: false, error: error.message };
       }
-      
-      console.log('[SidePlay Offscreen] Channel set successfully');
-      return { success: true };
     }
     
     // 清理标签页的音频
@@ -111,36 +186,20 @@
       console.log('[SidePlay Offscreen] cleanupTab called for tab', tabId);
       const ctx = audioContexts.get(tabId);
       if (ctx) {
-        ctx.audio.pause();
-        ctx.audio.srcObject = null;
-        ctx.stream.getTracks().forEach(track => track.stop());
-        ctx.context.close();
+        try {
+          ctx.audio.pause();
+          ctx.audio.srcObject = null;
+          ctx.stream.getTracks().forEach(track => track.stop());
+          ctx.context.close();
+          console.log('[SidePlay Offscreen] Cleaned up tab', tabId);
+        } catch (error) {
+          console.error('[SidePlay Offscreen] cleanupTab error:', error);
+        }
         audioContexts.delete(tabId);
-        console.log('[SidePlay Offscreen] Cleaned up tab', tabId);
       }
     }
     
-    // 监听来自 background 的消息
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('[SidePlay Offscreen] Received message:', request.action);
-      
-      if (request.action === 'initAudio') {
-        initAudio(request.tabId, request.streamId).then(sendResponse);
-        return true; // 异步响应
-      }
-      
-      if (request.action === 'setChannel') {
-        const result = setChannel(request.tabId, request.channel);
-        sendResponse(result);
-      }
-      
-      if (request.action === 'cleanup') {
-        cleanupTab(request.tabId);
-        sendResponse({ success: true });
-      }
-    });
-    
-    console.log('[SidePlay Offscreen] Message listener registered');
+    console.log('[SidePlay Offscreen] === SCRIPT END ===');
   </script>
 </body>
 </html>
