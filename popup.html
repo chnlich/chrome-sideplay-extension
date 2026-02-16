@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 280px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+    }
+    h1 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      text-align: center;
+      color: #eee;
+    }
+    .tab-info {
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 16px;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      word-break: break-all;
+    }
+    .channel-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .option {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    .option:hover {
+      background: rgba(255,255,255,0.12);
+    }
+    .option.active {
+      border-color: #4fc3f7;
+      background: rgba(79, 195, 247, 0.15);
+    }
+    .option-icon {
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .option-text {
+      flex: 1;
+    }
+    .option-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .option-desc {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .status.success {
+      background: rgba(76, 175, 80, 0.2);
+      color: #81c784;
+    }
+    .status.error {
+      background: rgba(244, 67, 54, 0.2);
+      color: #e57373;
+    }
+    .instructions {
+      margin-top: 16px;
+      padding: 10px;
+      background: rgba(255, 193, 7, 0.1);
+      border-radius: 6px;
+      font-size: 11px;
+      color: #ffc107;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎧 声道选择器</h1>
+  <div class="tab-info" id="tabInfo">加载中...</div>
+  
+  <div class="channel-options">
+    <div class="option" data-channel="both" id="optBoth">
+      <div class="option-icon">🔊</div>
+      <div class="option-text">
+        <div class="option-title">双声道 (立体声)</div>
+        <div class="option-desc">左右耳都能听到</div>
+      </div>
+    </div>
+    <div class="option" data-channel="left" id="optLeft">
+      <div class="option-icon">👈</div>
+      <div class="option-text">
+        <div class="option-title">仅左声道</div>
+        <div class="option-desc">只在左耳播放</div>
+      </div>
+    </div>
+    <div class="option" data-channel="right" id="optRight">
+      <div class="option-icon">👉</div>
+      <div class="option-text">
+        <div class="option-title">仅右声道</div>
+        <div class="option-desc">只在右耳播放</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="status" id="status" style="display: none;"></div>
+  
+  <div class="instructions">
+    💡 <strong>使用技巧：</strong><br>
+    在两个不同的标签页分别设置左声道和右声道，然后同时播放视频，即可享受左右耳分离的音频体验！
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

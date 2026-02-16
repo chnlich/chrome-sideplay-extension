@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Processor</title>
+</head>
+<body>
+  <script>
+    // 存储每个标签页的音频上下文
+    const audioContexts = new Map();
+    
+    // 初始化音频处理
+    async function initAudio(tabId, streamId) {
+      try {
+        // 获取媒体流
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            mandatory: {
+              chromeMediaSource: 'tab',
+              chromeMediaSourceId: streamId
+            }
+          },
+          video: false
+        });
+        
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        
+        // 创建声道分离器和合并器
+        const splitter = audioContext.createChannelSplitter(2);
+        const merger = audioContext.createChannelMerger(2);
+        
+        // 创建增益节点控制每个声道
+        const leftGain = audioContext.createGain();
+        const rightGain = audioContext.createGain();
+        
+        // 初始为双声道
+        leftGain.gain.value = 1;
+        rightGain.gain.value = 1;
+        
+        // 连接音频图
+        source.connect(splitter);
+        splitter.connect(leftGain, 0);  // 左声道
+        splitter.connect(rightGain, 1); // 右声道
+        leftGain.connect(merger, 0, 0);
+        rightGain.connect(merger, 0, 1);
+        
+        // 创建输出节点
+        const dest = audioContext.createMediaStreamDestination();
+        merger.connect(dest);
+        
+        // 播放处理后的音频
+        const audio = new Audio();
+        audio.srcObject = dest.stream;
+        await audio.play();
+        
+        // 存储上下文
+        audioContexts.set(tabId, {
+          context: audioContext,
+          leftGain,
+          rightGain,
+          audio,
+          stream
+        });
+        
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }
+    
+    // 设置声道
+    function setChannel(tabId, channel) {
+      const ctx = audioContexts.get(tabId);
+      if (!ctx) {
+        return { success: false, error: '音频未初始化' };
+      }
+      
+      switch (channel) {
+        case 'left':
+          ctx.leftGain.gain.value = 1;
+          ctx.rightGain.gain.value = 0;
+          break;
+        case 'right':
+          ctx.leftGain.gain.value = 0;
+          ctx.rightGain.gain.value = 1;
+          break;
+        case 'both':
+        default:
+          ctx.leftGain.gain.value = 1;
+          ctx.rightGain.gain.value = 1;
+          break;
+      }
+      
+      return { success: true };
+    }
+    
+    // 清理标签页的音频
+    function cleanupTab(tabId) {
+      const ctx = audioContexts.get(tabId);
+      if (ctx) {
+        ctx.audio.pause();
+        ctx.audio.srcObject = null;
+        ctx.stream.getTracks().forEach(track => track.stop());
+        ctx.context.close();
+        audioContexts.delete(tabId);
+      }
+    }
+    
+    // 监听来自 background 的消息
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'initAudio') {
+        initAudio(request.tabId, request.streamId).then(sendResponse);
+        return true;
+      }
+      
+      if (request.action === 'setChannel') {
+        const result = setChannel(request.tabId, request.channel);
+        sendResponse(result);
+      }
+      
+      if (request.action === 'cleanup') {
+        cleanupTab(request.tabId);
+        sendResponse({ success: true });
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Build and development files
+node_modules/
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Generated files
+dist/
+build/
+*.zip
+*.crx
+
+# Secrets
+*.pem
+.env

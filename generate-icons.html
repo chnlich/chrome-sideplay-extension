@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icons</title>
+</head>
+<body>
+  <canvas id="canvas16" width="16" height="16"></canvas>
+  <canvas id="canvas48" width="48" height="48"></canvas>
+  <canvas id="canvas128" width="128" height="128"></canvas>
+  <script>
+    function generateIcon(size, canvasId) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // 背景
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(1, '#16213e');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+      
+      // 圆形背景
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size*0.4, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f3460';
+      ctx.fill();
+      
+      // 耳机图标
+      const scale = size / 128;
+      ctx.save();
+      ctx.scale(scale, scale);
+      
+      ctx.strokeStyle = '#4fc3f7';
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      
+      // 耳机头带
+      ctx.beginPath();
+      ctx.arc(64, 64, 40, Math.PI, 0);
+      ctx.stroke();
+      
+      // 左耳罩
+      ctx.fillStyle = '#e94560';
+      ctx.fillRect(20, 60, 20, 30);
+      
+      // 右耳罩
+      ctx.fillStyle = '#4fc3f7';
+      ctx.fillRect(88, 60, 20, 30);
+      
+      ctx.restore();
+      
+      // 导出
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    // 生成所有尺寸
+    setTimeout(() => {
+      generateIcon(16, 'canvas16');
+      generateIcon(48, 'canvas48');
+      generateIcon(128, 'canvas128');
+    }, 100);
+  </script>
+</body>
+</html>
