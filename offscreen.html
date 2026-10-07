@@ -12,11 +12,11 @@
     console.log('[SidePlay Offscreen] === SCRIPT START ===');
     document.getElementById('status').textContent = 'Script loaded';
     
-    // 存储每个标签页的音频上下文
+    // Store the audio context for each tab
     const audioContexts = new Map();
     let messageListenerRegistered = false;
     
-    // 确保只注册一次 listener
+    // Make sure the listener is registered only once
     if (!messageListenerRegistered) {
       console.log('[SidePlay Offscreen] Registering message listener...');
       
@@ -33,7 +33,7 @@
               console.error('[SidePlay Offscreen] initAudio error:', error);
               sendResponse({ success: false, error: error.message });
             });
-            return true; // 异步响应
+            return true; // Async response
           }
           
           if (request.action === 'setChannel') {
@@ -65,18 +65,18 @@
       document.getElementById('status').textContent = 'Ready';
     }
     
-    // 初始化音频处理
+    // Initialize audio processing
     async function initAudio(tabId, streamId) {
       console.log('[SidePlay Offscreen] initAudio called for tab', tabId, 'streamId exists:', !!streamId);
       
       try {
-        // 如果已存在，先清理
+        // If one already exists, clean it up first
         if (audioContexts.has(tabId)) {
           console.log('[SidePlay Offscreen] Cleaning up existing context for tab', tabId);
           cleanupTab(tabId);
         }
         
-        // 获取媒体流
+        // Get the media stream
         console.log('[SidePlay Offscreen] Requesting media stream...');
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -93,39 +93,39 @@
         const audioContext = new AudioContext();
         const source = audioContext.createMediaStreamSource(stream);
         
-        // 创建声道分离器和合并器
+        // Create the channel splitter and merger
         const splitter = audioContext.createChannelSplitter(2);
         const merger = audioContext.createChannelMerger(2);
         
-        // 创建增益节点控制每个声道
+        // Create gain nodes to control each channel
         const leftGain = audioContext.createGain();
         const rightGain = audioContext.createGain();
         
-        // 初始为双声道
+        // Start in stereo
         leftGain.gain.value = 1;
         rightGain.gain.value = 1;
         
-        // 连接音频图
+        // Connect the audio graph
         source.connect(splitter);
-        splitter.connect(leftGain, 0);  // 左声道
-        splitter.connect(rightGain, 1); // 右声道
+        splitter.connect(leftGain, 0);  // Left channel
+        splitter.connect(rightGain, 1); // Right channel
         leftGain.connect(merger, 0, 0);
         rightGain.connect(merger, 0, 1);
         
-        // 创建输出节点
+        // Create the output node
         const dest = audioContext.createMediaStreamDestination();
         merger.connect(dest);
         
-        // 播放处理后的音频
+        // Play the processed audio
         const audio = new Audio();
         audio.srcObject = dest.stream;
         
-        // 尝试播放
+        // Try to start playback
         console.log('[SidePlay Offscreen] Starting audio playback...');
         await audio.play();
         console.log('[SidePlay Offscreen] Audio playback started for tab', tabId);
         
-        // 存储上下文
+        // Store the context
         audioContexts.set(tabId, {
           context: audioContext,
           leftGain,
@@ -144,14 +144,14 @@
       }
     }
     
-    // 设置声道
+    // Set the channel
     function setChannel(tabId, channel) {
       console.log('[SidePlay Offscreen] setChannel called for tab', tabId, 'channel', channel);
       const ctx = audioContexts.get(tabId);
       
       if (!ctx) {
         console.log('[SidePlay Offscreen] No audio context for tab', tabId, 'Available tabs:', Array.from(audioContexts.keys()));
-        return { success: false, error: '音频未初始化' };
+        return { success: false, error: 'Audio not initialized' };
       }
       
       try {
@@ -181,7 +181,7 @@
       }
     }
     
-    // 清理标签页的音频
+    // Clean up the tab's audio
     function cleanupTab(tabId) {
       console.log('[SidePlay Offscreen] cleanupTab called for tab', tabId);
       const ctx = audioContexts.get(tabId);

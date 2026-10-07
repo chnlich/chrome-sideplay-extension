@@ -12,20 +12,20 @@
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
       
-      // 背景
+      // Background
       const gradient = ctx.createLinearGradient(0, 0, size, size);
       gradient.addColorStop(0, '#1a1a2e');
       gradient.addColorStop(1, '#16213e');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, size, size);
       
-      // 圆形背景
+      // Circular background
       ctx.beginPath();
       ctx.arc(size/2, size/2, size*0.4, 0, Math.PI * 2);
       ctx.fillStyle = '#0f3460';
       ctx.fill();
       
-      // 耳机图标
+      // Headphone icon
       const scale = size / 128;
       ctx.save();
       ctx.scale(scale, scale);
@@ -34,29 +34,29 @@
       ctx.lineWidth = 8;
       ctx.lineCap = 'round';
       
-      // 耳机头带
+      // Headband
       ctx.beginPath();
       ctx.arc(64, 64, 40, Math.PI, 0);
       ctx.stroke();
       
-      // 左耳罩
+      // Left ear cup
       ctx.fillStyle = '#e94560';
       ctx.fillRect(20, 60, 20, 30);
       
-      // 右耳罩
+      // Right ear cup
       ctx.fillStyle = '#4fc3f7';
       ctx.fillRect(88, 60, 20, 30);
       
       ctx.restore();
       
-      // 导出
+      // Export
       const link = document.createElement('a');
       link.download = `icon${size}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     }
     
-    // 生成所有尺寸
+    // Generate all sizes
     setTimeout(() => {
       generateIcon(16, 'canvas16');
       generateIcon(48, 'canvas48');

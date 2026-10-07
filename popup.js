@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
   } catch (error) {
     console.error('[SidePlay Popup] Init error:', error);
-    showStatus('初始化失败: ' + error.message, true);
+    showStatus('Failed to load: ' + error.message, true);
   }
 });
 
@@ -52,7 +52,7 @@ function showStatus(message, isError = false) {
 
 async function setChannel(channel) {
   console.log('[SidePlay Popup] Setting channel:', channel);
-  document.getElementById('status').textContent = '应用设置中...';
+  document.getElementById('status').textContent = 'Applying...';
   document.getElementById('status').style.display = 'block';
   
   try {
@@ -64,19 +64,19 @@ async function setChannel(channel) {
     
     if (response && response.success) {
       updateUI(channel);
-      showStatus(`已切换到: ${getChannelName(channel)}`);
+      showStatus(`Switched to: ${getChannelName(channel)}`);
     } else {
-      showStatus('错误: ' + (response?.error || '无法应用设置，请刷新页面'), true);
+      showStatus('Error: ' + (response?.error || "Couldn't apply the setting. Reload the page and try again."), true);
     }
   } catch (error) {
-    showStatus('错误: ' + error.message, true);
+    showStatus('Error: ' + error.message, true);
   }
 }
 
 function getChannelName(channel) {
   switch (channel) {
-    case 'left': return '仅左声道';
-    case 'right': return '仅右声道';
-    default: return '双声道';
+    case 'left': return 'Left only';
+    case 'right': return 'Right only';
+    default: return 'Stereo';
   }
 }
